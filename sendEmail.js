@@ -19,6 +19,7 @@ function generateReport(pages, comparisons = [], failedPages = []) {
   let criticalLines = [];
   let sourceChangeLines = [];
   let robotsChangeLines = [];
+  let navChangeLines = []; // New array for navigation changes
   let minorLines = [];
   let noticeLines = [];
 
@@ -119,7 +120,8 @@ function generateReport(pages, comparisons = [], failedPages = []) {
       noticeLines.push(`<li><strong>${comparison.url}</strong><br>First scrape, no previous version to compare</li>`);
     } else if (comparison.changes && comparison.changes.length > 0) {
       let criticalChanges = []; // For Title/H1/Canonical changes (Metadata)
-      let minorChanges = []; // For Nav changes
+      let minorChanges = []; // For other minor changes
+      let navChanges = []; // For Nav changes
       
       comparison.changes.forEach(change => {
         if (change.type === 'content') {
@@ -137,7 +139,7 @@ function generateReport(pages, comparisons = [], failedPages = []) {
         } else if (change.type === 'h1') {
           criticalChanges.push(`H1 changed:<br><span style="color:#d9534f">- "${change.oldValue}"</span><br><span style="color:#5cb85c">+ "${change.newValue}"</span>`);
         } 
-        // Minor: Navigation changes
+        // Navigation changes
         else if (change.type === 'nav_removed' || change.type === 'nav_added' || change.type === 'nav_text_changed') {
           counts.navChanges++;
           let msg = '';
@@ -154,13 +156,18 @@ function generateReport(pages, comparisons = [], failedPages = []) {
             }
           });
           msg += '</ul>';
-          minorChanges.push(msg);
+          navChanges.push(msg);
         }
       });
       
       if (criticalChanges.length > 0) {
         allOk = false;
         criticalLines.push(`<li><strong>${comparison.url}</strong><br>${criticalChanges.join('<br>')}</li>`);
+      }
+
+      if (navChanges.length > 0) {
+        allOk = false;
+        navChangeLines.push(`<li><strong>${comparison.url}</strong><br>${navChanges.join('<br>')}</li>`);
       }
       
       if (minorChanges.length > 0) {
@@ -234,11 +241,22 @@ function generateReport(pages, comparisons = [], failedPages = []) {
     if (subject === 'SEO Monitor - All OK') subject = 'SEO Monitor - Robots.txt Changes';
   }
 
+  // 3.5 Navigation Changes (Blue/Teal)
+  if (navChangeLines.length > 0) {
+    htmlReport += `
+      <h3 style="color: #17a2b8; margin-top: 20px;">🧭 Navigation Menu Changes</h3>
+      <ul style="background: #f0f8ff; border: 1px solid #bee5eb; padding: 15px 15px 15px 30px; border-radius: 4px;">
+        ${navChangeLines.join('')}
+      </ul>
+    `;
+    if (subject === 'SEO Monitor - All OK') subject = 'SEO Monitor - Navigation Changes';
+  }
+
   // 4. Minor Issues (Yellow)
   if (minorLines.length > 0) {
     htmlReport += `
       <h3 style="color: #f0ad4e; margin-top: 20px;">⚠️ Minor Issues & Changes</h3>
-      <p style="font-size: 0.9em; color: #666;">(Meta Descriptions, Long Titles, Non-Self-Ref Canonicals, Multiple H1s, Navigation Menu)</p>
+      <p style="font-size: 0.9em; color: #666;">(Meta Descriptions, Long Titles, Non-Self-Ref Canonicals, Multiple H1s)</p>
       <ul style="background: #fcf8e3; border: 1px solid #faebcc; padding: 15px 15px 15px 30px; border-radius: 4px;">
         ${minorLines.join('')}
       </ul>

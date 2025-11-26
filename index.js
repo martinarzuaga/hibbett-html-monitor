@@ -20,6 +20,16 @@ let urls = fs.readFileSync(urlsFile, 'utf8')
   .map(line => line.trim())
   .filter(line => line.length > 0);
 
+// Check for limit argument
+const limitArg = process.argv[2];
+if (limitArg) {
+  const limit = parseInt(limitArg, 10);
+  if (!isNaN(limit) && limit > 0) {
+    console.log(`Limiting scrape to first ${limit} URLs as requested.`);
+    urls = urls.slice(0, limit);
+  }
+}
+
 // Sitemaps to monitor
 const SITEMAP_URLS = [
   // Example: 'https://www.hibbett.com/sitemap_index.xml',
@@ -151,13 +161,30 @@ function getVisibleText(html) {
 }
 
 function extractNavigationLinks(html, baseUrl) {
+  const urlObj = new URL(baseUrl);
+  const domain = urlObj.hostname;
+  const path = urlObj.pathname;
+
+  // Only check navigation on homepages (root path)
+  if (path !== '/' && path !== '') {
+    return [];
+  }
+
   const $ = cheerio.load(html);
   const navLinks = [];
-  const domain = new URL(baseUrl).hostname;
   
-  // Find the navigation menu
-  const nav = $('#navigation');
-  if (nav.length === 0) {
+  let nav;
+  if (domain.includes('kidshibbett.com')) {
+    // Use the specific selector provided for kidshibbett.com
+    // <div class="chakra-modal__body css-bkjnbb" id="chakra-modal--body-:r17:">
+    // Using class selector as ID seems dynamic
+    nav = $('.chakra-modal__body');
+  } else {
+    // hibbett.com
+    nav = $('#navigation');
+  }
+
+  if (!nav || nav.length === 0) {
     return navLinks;
   }
   
