@@ -4,6 +4,7 @@ const { ScrapflyClient, ScrapeConfig } = require('scrapfly-sdk');
 const { MongoClient } = require('mongodb');
 const cheerio = require('cheerio');
 const { sendEmail } = require('./sendEmail');
+const { sendDiffEmail } = require('./diffReporter');
 
 // Your Scrapfly API key
 const SCRAPFLY_API_KEY = process.env.SCRAPFLY_API_KEY;
@@ -317,7 +318,9 @@ function compareVersions(oldPage, newPage) {
     if (percentDiff > 20) {
       changes.push({
         type: 'content',
-        message: `${percentDiff.toFixed(1)}% of visible content difference vs previous version`
+        message: `${percentDiff.toFixed(1)}% of visible content difference vs previous version`,
+        oldText: oldText,
+        newText: newText
       });
     }
   }
@@ -552,8 +555,29 @@ async function cleanupOldData(retentionDays = 30) {
     const successfulUrls = successfulPages.map(p => p.url);
     const comparisons = await getPreviousVersions(successfulUrls);
     
+    // Collect major changes for diff report
+    const majorChanges = [];
+    comparisons.forEach(comp => {
+      if (comp.changes) {
+        const contentChange = comp.changes.find(c => c.type === 'content');
+        if (contentChange) {
+          majorChanges.push({
+            url: comp.url,
+            oldText: contentChange.oldText,
+            newText: contentChange.newText
+          });
+        }
+      }
+    });
+
     // After scraping and parsing all URLs
     await sendEmail(successfulPages, comparisons, failedPages);
+    
+    // Send diff email if needed
+    if (majorChanges.length > 0) {
+      console.log(`Sending detailed diff email for ${majorChanges.length} pages...`);
+      await sendDiffEmail(majorChanges);
+    }
     
     // Cleanup old data
     await cleanupOldData(30);

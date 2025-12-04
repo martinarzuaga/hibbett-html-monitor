@@ -314,4 +314,4 @@ async function sendEmail(pages, comparisons = [], failedPages = []) {
   }
 }
 
-module.exports = { sendEmail };
+module.exports = { sendEmail, transporter };
