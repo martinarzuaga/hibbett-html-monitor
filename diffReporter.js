@@ -2,7 +2,7 @@ const Diff = require('diff');
 const { transporter } = require('./sendEmail');
 require('dotenv').config();
 
-async function sendDiffEmail(majorChanges) {
+async function sendDiffEmail(majorChanges, recipients = null) {
   if (!majorChanges || majorChanges.length === 0) return;
 
   let htmlContent = `
@@ -57,10 +57,12 @@ async function sendDiffEmail(majorChanges) {
     </div>
   `;
 
+  const defaultRecipients = 'marzuaga@peakactivity.com, vijaylaxmi.chauhan@hibbett.com, tre.kitchen@hibbett.com, areynolds@peakactivity.com';
+
   const mailOptions = {
     from: `"SEO Monitor" <${process.env.EMAIL_USER}>`,
     // Reuse the same recipients as the main email
-    to: 'marzuaga@peakactivity.com, vijaylaxmi.chauhan@hibbett.com, tre.kitchen@hibbett.com, areynolds@peakactivity.com',
+    to: recipients || defaultRecipients,
     subject: 'SEO Monitor - Detailed Content Changes',
     html: htmlContent,
   };

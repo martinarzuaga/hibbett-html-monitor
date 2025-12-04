@@ -1,4 +1,5 @@
 const fs = require('fs');
+const readline = require('readline');
 require('dotenv').config();
 const { ScrapflyClient, ScrapeConfig } = require('scrapfly-sdk');
 const { MongoClient } = require('mongodb');
@@ -13,6 +14,18 @@ const scrapfly = new ScrapflyClient({ key: SCRAPFLY_API_KEY });
 // MongoDB connection URI & client
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/hibbett_monitor';
 const client = new MongoClient(MONGO_URI);
+
+function askQuestion(query) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise(resolve => rl.question(query, ans => {
+    rl.close();
+    resolve(ans);
+  }));
+}
 
 // Read URLs from urls.txt
 const urlsFile = 'urls.txt';
@@ -494,9 +507,24 @@ async function cleanupOldData(retentionDays = 30) {
 }
 
 (async () => {
-  const results = [];
-
   try {
+    const answer = await askQuestion('Select mode:\n1. Production (All URLs, All Emails)\n2. Testing (25 Random URLs, Only Me)\nEnter 1 or 2: ');
+    
+    let recipients = null;
+    let isTesting = false;
+
+    if (answer.trim() === '2') {
+      console.log('\n--- TESTING MODE SELECTED ---');
+      console.log('Emails will be sent ONLY to: marzuaga@peakactivity.com');
+      isTesting = true;
+      recipients = 'marzuaga@peakactivity.com';
+    } else {
+      console.log('\n--- PRODUCTION MODE SELECTED ---');
+      console.log('Emails will be sent to ALL recipients.');
+    }
+
+    const results = [];
+
     // Connect to MongoDB once at the start
     await client.connect();
     console.log('Connected to MongoDB');
@@ -512,6 +540,13 @@ async function cleanupOldData(retentionDays = 30) {
         urls = Array.from(allUrls);
         console.log(`Total unique URLs to monitor: ${urls.length}`);
       }
+    }
+
+    // Apply Testing Mode Limit (Random 25)
+    if (isTesting) {
+      console.log(`\nTesting mode: Selecting 25 random URLs from total of ${urls.length}...`);
+      urls = urls.sort(() => 0.5 - Math.random()).slice(0, 25);
+      console.log(`Selected ${urls.length} URLs for testing.`);
     }
 
     for (const targetUrl of urls) {
@@ -571,12 +606,12 @@ async function cleanupOldData(retentionDays = 30) {
     });
 
     // After scraping and parsing all URLs
-    await sendEmail(successfulPages, comparisons, failedPages);
+    await sendEmail(successfulPages, comparisons, failedPages, recipients);
     
     // Send diff email if needed
     if (majorChanges.length > 0) {
       console.log(`Sending detailed diff email for ${majorChanges.length} pages...`);
-      await sendDiffEmail(majorChanges);
+      await sendDiffEmail(majorChanges, recipients);
     }
     
     // Cleanup old data

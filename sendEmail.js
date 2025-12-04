@@ -295,13 +295,15 @@ function generateReport(pages, comparisons = [], failedPages = []) {
   return { subject, html: htmlReport };
 }
 
-async function sendEmail(pages, comparisons = [], failedPages = []) {
+async function sendEmail(pages, comparisons = [], failedPages = [], recipients = null) {
   const report = generateReport(pages, comparisons, failedPages);
+
+  const defaultRecipients = 'marzuaga@peakactivity.com, vijaylaxmi.chauhan@hibbett.com, tre.kitchen@hibbett.com, areynolds@peakactivity.com';
 
   const mailOptions = {
     from: `"SEO Monitor" <${process.env.EMAIL_USER}>`,
     // to: process.env.EMAIL_USER,
-    to: 'marzuaga@peakactivity.com, vijaylaxmi.chauhan@hibbett.com, tre.kitchen@hibbett.com, areynolds@peakactivity.com', // Add more emails separated by commas
+    to: recipients || defaultRecipients, // Use provided recipients or default
     subject: report.subject,
     html: report.html, // Use 'html' instead of 'text'
   };
